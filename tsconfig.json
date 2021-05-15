@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "noImplicitAny": true,
+    "module": "AMD",
     "sourceMap": true,
     "outDir": "dist",
     "baseUrl": ".",
