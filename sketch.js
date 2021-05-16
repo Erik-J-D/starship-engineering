@@ -51,17 +51,19 @@ function select_dragging(target) {
   return self;
 }
 
-function select_create_wire(input_connector) {
+function select_create_wire(input) {
   let self = {
     state: "creating_wire",
-    wire: wire(input_connector, null),
+    wire: wire(input, null),
 
     finish: (mouse) => {
       for (var entity of entities) {
         if (!entity.connect_input) continue;
+        if (entity.descendents().has(input.node)) continue;
 
         let available_output = entity.connect_input(mouse, self.wire);
         if (available_output) {
+          self.wire.input.wire = self.wire;
           self.wire.output = available_output;
           entities.push(self.wire);
           return;
@@ -101,13 +103,20 @@ function draw_variable(variable) {
 }
 
 function wire(input, output) {
-  let w = {
+  let self = {
     input: input,
     output: output,
   };
-  w.draw = () => draw_wire(w);
-  w.select = () => {};
-  return w;
+  self.descendents = () => {
+    if (self.output) {
+      return self.output.descendents();
+    } else {
+      return new Set();
+    }
+  };
+  self.draw = () => draw_wire(self);
+  self.select = () => {};
+  return self;
 }
 
 function draw_wire(w) {
@@ -138,46 +147,53 @@ function draw_wire(w) {
 }
 
 function connector(node, input_name, offset, wire) {
-  return { node, input_name, offset, wire };
+  let self = { node, input_name, offset, wire };
+  self.descendents = () => self.node.descendents();
+
+  return self;
 }
 
-function gate(op) {
+function gate(op, n_inputs) {
   let self = {
     op: op,
     pos: rand_vec(),
   };
-  self.left = connector(self, "left", vec(-5, -10), null);
-  self.right = connector(self, "right", vec(5, -10), null);
-  self.output = connector(self, "output", vec(0, 10), null);
+
+  self.inputs = [...Array(n_inputs).keys()].map((i) =>
+    connector(self, `In:${i}`, vec(20 * (i - (n_inputs - 1) / 2), -10), null)
+  );
+  self.output = connector(self, "Out", vec(0, 10), null);
   self.draw = () => draw_gate(self);
 
   self.select = (mouse) => {
     let output_pos = v_add(self.pos, self.output.offset);
-    if (v_dist(mouse, output_pos) < 5) {
+    if (!self.output.wire && v_dist(mouse, output_pos) < 10) {
       return select_create_wire(self.output);
     } else if (v_dist(mouse, self.pos) < 30) {
       return select_dragging(self);
     }
   };
 
+  self.descendents = () => {
+    let descendents = new Set();
+    descendents.add(self);
+    if (self.output.wire) {
+      for (var d of self.output.wire.descendents()) {
+        descendents.add(d);
+      }
+    }
+    return descendents;
+  };
+
   self.connect_input = (mouse, wire) => {
-    let available_connectors = [];
-
-    if (!self.left.wire) {
-      available_connectors.push(self.left);
-    }
-
-    if (!self.right.wire) {
-      available_connectors.push(self.right);
-    }
-
+    let available_connectors = self.inputs.filter((i) => !i.wire);
     let connectors_within_range = available_connectors.filter(
-      (input) => 10 > v_dist(mouse, v_add(self.pos, input.offset))
+      (input) => 15 > v_dist(mouse, v_add(self.pos, input.offset))
     );
     connectors_within_range.sort((a, b) =>
       v_dist(
         mouse,
-        v_add(self.pos, a.offset) - v_dist(mouse, v_add(self.pos, b.offset))
+        -(v_add(self.pos, a.offset) - v_dist(mouse, v_add(self.pos, b.offset)))
       )
     );
     if (connectors_within_range.length > 0) {
@@ -192,20 +208,22 @@ function gate(op) {
 function draw_gate(gate) {
   fill(255);
   noStroke();
-  let gate_w = 30;
-  let gate_h = 20;
+  let gate_w = 20 * gate.inputs.length;
+  let gate_h = 30;
   rect(gate.pos.x, gate.pos.y, gate_w, gate_h);
 }
 
-function or(left, right, output) {
-  return gate("or", left, right, output);
+function or() {
+  return gate("or", 2);
 }
 
-function and(left, right, output) {
-  return gate("and", left, right, output);
+function and() {
+  return gate("and", 2);
 }
 
-function not() {}
+function not() {
+  return gate("not", 1);
+}
 
 let entities = [];
 
@@ -218,10 +236,16 @@ function setup() {
   rectMode(CENTER);
   entities = [
     variable("Plasma Injectors"),
-    or(null, null, null),
-    or(null, null, null),
-    or(null, null, null),
-    or(null, null, null),
+    or(),
+    or(),
+    and(),
+    and(),
+    and(),
+    and(),
+    not(),
+    not(),
+    not(),
+    not(),
   ];
 }
 
