@@ -233,22 +233,31 @@ function draw_entities() {
   entities.forEach((e) => e.draw());
 }
 
+function mathNodeToGraph(node) {
+  switch (node.type) {
+    case "FunctionNode":
+      console.log("fn", node.fn);
+      break;
+    case "OperatorNode":
+      console.log("op", node.op);
+      break;
+    case "SymbolNode":
+      console.log("sym", node.name);
+      break;
+    default:
+      console.error("unknown node", node.type, node);
+  }
+}
+
+function buildGraph() {
+  let expr = i12tEqJen(4);
+  return mathNodeToGraph(expr);
+}
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   rectMode(CENTER);
-  entities = [
-    variable("Plasma Injectors"),
-    or(),
-    or(),
-    and(),
-    and(),
-    and(),
-    and(),
-    not(),
-    not(),
-    not(),
-    not(),
-  ];
+  buildGraph();
 }
 
 let mouse = vec(0, 0);
