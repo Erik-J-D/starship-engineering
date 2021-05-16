@@ -211,6 +211,8 @@ function draw_gate(gate) {
   let gate_w = 20 * gate.inputs.length;
   let gate_h = 30;
   rect(gate.pos.x, gate.pos.y, gate_w, gate_h);
+  fill(0);
+  text(gate.op, gate.pos.x, gate.pos.y);
 }
 
 function or() {
@@ -222,7 +224,7 @@ function and() {
 }
 
 function not() {
-  return gate("not", 1);
+  return gate("!", 1);
 }
 
 let entities = [];
