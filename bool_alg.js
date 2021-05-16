@@ -40,7 +40,7 @@ function i12tEqJen(numInputs) {
       Math.floor(Math.random() * numInputs) + 2,
       numInputs
     );
-    for (j = 0; j < numVarsInTerm; j++) {
+    for (let j = 0; j < numVarsInTerm; j++) {
       term.push(terms.pop());
     }
     allTerms.push(makeAnd(term));
