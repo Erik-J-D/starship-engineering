@@ -2,7 +2,7 @@ const letters = "abcdefghijklmnopqrstuvwxyz";
 
 function getVariableOptions(n) {
   l = letters.substring(0, n).split("");
-  for (i = 0; i < n; i++) {
+  for (let i = 0; i < n; i++) {
     if (Math.random() > 0.5) {
       l[i] = `not(${l[i]})`;
     }
@@ -23,7 +23,7 @@ function i12tEqJen(numInputs) {
   // Do simplifyable terms
   basicTerm = [];
   terms = getVariableOptions(numInputs);
-  for (i = 0; i < numInputs / 2; i++) {
+  for (let i = 0; i < numInputs / 2; i++) {
     basicTerm.push(terms.pop());
   }
   allTerms.push(makeAnd(basicTerm));
@@ -33,7 +33,7 @@ function i12tEqJen(numInputs) {
 
   // Do a random number of random terms
   numNewTerms = Math.floor(Math.random() * 5) + 2;
-  for (i = 0; i < numNewTerms; i++) {
+  for (let i = 0; i < numNewTerms; i++) {
     term = [];
     terms = getVariableOptions(numInputs);
     numVarsInTerm = Math.min(
