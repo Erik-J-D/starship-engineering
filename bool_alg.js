@@ -4,7 +4,7 @@ function getVariableOptions(n) {
   l = letters.substring(0, n).split("");
   for (let i = 0; i < n; i++) {
     if (Math.random() > 0.5) {
-      l[i] = `not(${l[i]})`;
+      l[i] = `not ${l[i]}`;
     }
   }
 

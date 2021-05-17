@@ -63,7 +63,7 @@ function select_create_wire(input) {
 
         let available_output = entity.connect_input(mouse, self.wire);
         if (available_output) {
-          self.wire.input.wire = self.wire;
+          self.wire.input.wires.push(self.wire);
           self.wire.output = available_output;
           entities.push(self.wire);
           return;
@@ -76,6 +76,7 @@ function select_create_wire(input) {
     let start = v_add(self.wire.input.node.pos, self.wire.input.offset);
     self.wire.output = { node: { pos: mouse }, offset: vec() };
     draw_wire(self.wire);
+    self.wire.output = null;
   };
   return self;
 }
@@ -85,10 +86,13 @@ function variable(name) {
     name: name,
     pos: rand_vec(),
   };
+  self.output = connector(self, name, vec(0, 10));
   self.draw = () => draw_variable(self);
   self.select = (mouse) => {
-    if (v_dist(mouse, self.pos) < 30) {
-      return select_create_wire(connector(self, name, vec(0, 10)));
+    if (v_dist(mouse, v_add(self.pos, self.output.offset)) < 15) {
+      return select_create_wire(self.output);
+    } else if (v_dist(mouse, self.pos) < 15) {
+      return select_dragging(self);
     }
   };
   return self;
@@ -109,6 +113,7 @@ function wire(input, output) {
   };
   self.descendents = () => {
     if (self.output) {
+      console.log(self.output);
       return self.output.descendents();
     } else {
       return new Set();
@@ -116,6 +121,15 @@ function wire(input, output) {
   };
   self.draw = () => draw_wire(self);
   self.select = () => {};
+
+  if (input) {
+    input.wires.push(self);
+  }
+
+  if (output) {
+    output.wires.push(self);
+  }
+
   return self;
 }
 
@@ -146,8 +160,8 @@ function draw_wire(w) {
   );
 }
 
-function connector(node, input_name, offset, wire) {
-  let self = { node, input_name, offset, wire };
+function connector(node, input_name, offset) {
+  let self = { node, input_name, offset, wires: [] };
   self.descendents = () => self.node.descendents();
 
   return self;
@@ -167,7 +181,7 @@ function gate(op, n_inputs) {
 
   self.select = (mouse) => {
     let output_pos = v_add(self.pos, self.output.offset);
-    if (!self.output.wire && v_dist(mouse, output_pos) < 10) {
+    if (v_dist(mouse, output_pos) < 10) {
       return select_create_wire(self.output);
     } else if (v_dist(mouse, self.pos) < 30) {
       return select_dragging(self);
@@ -177,16 +191,16 @@ function gate(op, n_inputs) {
   self.descendents = () => {
     let descendents = new Set();
     descendents.add(self);
-    if (self.output.wire) {
-      for (var d of self.output.wire.descendents()) {
+    self.output.wires.forEach((w) => {
+      for (var d of w.descendents()) {
         descendents.add(d);
       }
-    }
+    });
     return descendents;
   };
 
   self.connect_input = (mouse, wire) => {
-    let available_connectors = self.inputs.filter((i) => !i.wire);
+    let available_connectors = self.inputs.filter((i) => i.wires.length == 0);
     let connectors_within_range = available_connectors.filter(
       (input) => 15 > v_dist(mouse, v_add(self.pos, input.offset))
     );
@@ -198,7 +212,7 @@ function gate(op, n_inputs) {
     );
     if (connectors_within_range.length > 0) {
       let connector = connectors_within_range[0];
-      connector.wire = wire;
+      connector.wires.push(wire);
       return connector;
     }
   };
@@ -233,16 +247,73 @@ function draw_entities() {
   entities.forEach((e) => e.draw());
 }
 
+let global_variables = {};
+
 function mathNodeToGraph(node) {
   switch (node.type) {
     case "FunctionNode":
-      console.log("fn", node.fn);
+      console.log("fn", node);
+      let left;
+      let right;
+      switch (node.fn.name) {
+        case "or":
+          console.log("or node");
+          left = mathNodeToGraph(node.args[0]);
+          right = mathNodeToGraph(node.args[1]);
+
+          if (!left.output || !right.output) {
+            throw "You done goofed";
+          }
+
+          let or_gate = or();
+          entities.push(or_gate);
+          entities.push(wire(left.output, or_gate.inputs[0]));
+          entities.push(wire(right.output, or_gate.inputs[1]));
+          return or_gate;
+        case "and":
+          console.log("and node");
+          left = mathNodeToGraph(node.args[0]);
+          right = mathNodeToGraph(node.args[1]);
+
+          if (!left.output || !right.output) {
+            throw "You done goofed";
+          }
+
+          let and_gate = and();
+          entities.push(and_gate);
+          entities.push(wire(left.output, and_gate.inputs[0]));
+          entities.push(wire(right.output, and_gate.inputs[1]));
+          return and_gate;
+
+        default:
+          console.error("unknown fn", node.fn, node);
+      }
       break;
     case "OperatorNode":
-      console.log("op", node.op);
+      console.log("op", node);
+      console.log("not node");
+      let operand = mathNodeToGraph(node.args[0]);
+      if (!operand.output) {
+        throw "You done goofed";
+      }
+
+      let not_gate = not();
+      entities.push(not_gate);
+      entities.push(wire(operand.output, not_gate.inputs[0]));
+      return not_gate;
+
       break;
     case "SymbolNode":
       console.log("sym", node.name);
+      if (global_variables[node.name]) {
+        return global_variables[node.name];
+      } else {
+        global_variables[node.name] = variable(node.name);
+
+        entities.push(global_variables[node.name]);
+        return global_variables[node.name];
+      }
+
       break;
     default:
       console.error("unknown node", node.type, node);
